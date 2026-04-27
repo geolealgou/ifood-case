@@ -4,16 +4,7 @@
 
 Este projeto apresenta uma solução de ingestão, transformação e disponibilização de dados de corridas de táxi de Nova York (NYC TLC), seguindo o modelo de arquitetura **Data Lake em camadas (Bronze, Silver e Gold)**.
 
-O objetivo é demonstrar boas práticas de engenharia de dados, incluindo:
-
-- ingestão de dados externos;
-- organização em camadas;
-- padronização e qualidade de dados;
-- disponibilização para consumo analítico via SQL.
-
----
-
-## 🗂️ Estrutura do Repositório
+## Estrutura do Repositório
 
 ifood-case/
 
@@ -32,10 +23,8 @@ ifood-case/
 ### Organização
 
 - **src/**: contém toda a pipeline de dados  
-- **analysis/**: contém as análises solicitadas no case  
+- **analysis/**: contém as análises solicitadas pelo time de negocio  
 - **README.md**: documentação da solução  
-
----
 
 ## Arquitetura da Solução
 
@@ -45,23 +34,19 @@ A solução foi estruturada seguindo o padrão de camadas:
 - **Silver** → dados tratados e padronizados  
 - **Gold** → dados prontos para consumo analítico  
 
----
+## 🟤 Camada Bronze — Ingestão
 
-# 🟤 Camada Bronze — Ingestão
+### Objetivo
 
-## Objetivo
+Ingerir os arquivos originais de corridas de táxi (Yellow Taxi) disponibilizados pela NYC TLC do ano de 2023 e meses de jan a maio, mantendo os dados em seu formato original e garantindo rastreabilidade.
 
-Ingerir os arquivos originais de corridas de táxi (Yellow Taxi) disponibilizados pela NYC TLC, mantendo os dados em seu formato original e garantindo rastreabilidade.
-
----
-
-## Implementação
+### Implementação
 
 A ingestão foi realizada diretamente a partir da fonte pública:
 
 https://d37ci6vzurychx.cloudfront.net/trip-data
 
-Os dados foram armazenados no Data Lake com a seguinte estrutura:
+Os dados foram armazenados no S3 onde foi o Data Lake com a seguinte estrutura:
 
 s3://bronze-case-ifood-geoleal/yellow_taxi/
 
@@ -77,29 +62,15 @@ s3://bronze-case-ifood-geoleal/yellow_taxi/
 
 └── month=05/
 
+### Decisões Técnicas
 
----
-
-## 🧠 Decisões Técnicas
-
-### 🔹 Uso de External Location (Databricks)
+#### Uso de External Location (Databricks)
 
 Foi utilizada uma **External Location no Databricks** apontando para um bucket S3 para armazenar os dados da camada Bronze.
 
-Essa abordagem foi escolhida porque:
+Essa abordagem foi escolhida porque, o S3 é um serviço que o databricks consegue gerencia, tem uma integração bem consolidada e é uma pratica de mercado, bem utilizada em ambientes produtivos.
 
-- permite **separação entre storage e compute**;  
-- segue boas práticas de **governança de dados com Unity Catalog**;  
-- facilita controle de acesso e organização do Data Lake;  
-- é o padrão recomendado em arquiteturas modernas de Lakehouse.  
-
-**Observação importante:**
-
-Devido às limitações do ambiente de desenvolvimento (Databricks Community Edition), a utilização de External Location foi a melhor alternativa disponível para simular um ambiente produtivo.
-
----
-
-### 🔹 Armazenamento Raw (sem transformação)
+### Armazenamento Raw (sem transformação)
 
 Os dados são armazenados **exatamente como foram recebidos**, sem qualquer modificação.
 
@@ -113,29 +84,9 @@ Em um ambiente produtivo:
 
 É recomendado sempre manter uma camada Bronze com dados crus (raw), pois isso permite reconstruir pipelines, auditar dados e lidar com mudanças futuras de schema.
 
----
+## ⚪ Camada Silver — Padronização e Qualidade de Dados
 
-### 🔹 Idempotência
-
-A ingestão utiliza:
-
-```python
-dbutils.fs.cp(..., overwrite=True)
-
-Isso garante que o processo pode ser reexecutado sem gerar duplicidade.
-
-🏁 Conclusão camada Bronze
-
-A camada Bronze foi implementada seguindo boas práticas de Data Lake, garantindo:
-
-armazenamento confiável dos dados originais;
-organização por partições (ano/mês);
-rastreabilidade e reprocessamento;
-preparação adequada para as próximas camadas.
-
-# ⚪ Camada Silver — Padronização e Qualidade de Dados
-
-## Objetivo
+### Objetivo
 
 A camada Silver tem como objetivo transformar os dados brutos da Bronze em um formato estruturado, consistente e pronto para consumo analítico.
 
@@ -143,69 +94,43 @@ Nesta etapa são aplicados:
 
 - padronização de schema;
 - tipagem explícita das colunas;
-- limpeza mínima de dados;
+- limpeza dos dados;
 - organização otimizada para consultas.
 
----
-
-## Implementação
+### Implementação
 
 Os dados são lidos a partir da camada Bronze e transformados utilizando PySpark, sendo posteriormente armazenados em formato **Delta Lake**, com particionamento por ano e mês.
 
----
+###  Decisões Técnicas
 
-##  Decisões Técnicas
+#### Leitura arquivo a arquivo (por mês)
 
-### Leitura arquivo a arquivo (por mês)
+Essa abordagem foi adotada devido a um comportamento observado nos dados de origem, os arquivos Parquet apresentam variações de schema físico entre os meses, especialmente em colunas numéricas (ex: INT64 vs DOUBLE).
+E quando o spark vai ler os arquivos com schemas diferentes ele da erro, por isso a necessidade da leitura aqrquivo por arquivo.
 
-A leitura dos dados é feita iterando sobre os diretórios mensais:
+#### Consideração para ambiente produtivo
 
-```python
-for month_id in months:
-    df_raw = spark.read.parquet(path)
-    
-Essa abordagem foi adotada devido a um comportamento observado nos dados de origem:
-
-Os arquivos Parquet apresentam variações de schema físico entre os meses, especialmente em colunas numéricas (ex: INT64 vs DOUBLE).
-
-Essas diferenças causam erros como:
-
-FAILED_READ_FILE.PARQUET_COLUMN_DATA_TYPE_MISMATCH
-
-## Solução adotada
-leitura individual por mês;
-aplicação de cast explícito para um schema padronizado;
-união dos dados com unionByName.
-
-## Consideração
-
-Embora a leitura arquivo a arquivo não seja a abordagem mais performática para grandes volumes, ela garante consistência e previsibilidade no contexto deste case.
-
-## Consideração para ambiente produtivo
-
-Em um ambiente produtivo, essa limitação seria tratada com soluções mais robustas, como:
-
-Databricks Auto Loader (cloudFiles)
-controle de schema evolution
-uso de schema registry ou versionamento de schema
-ingestão incremental com checkpoints
+Em um ambiente produtivo, com milhares de arquivos isso não é viavel,  essa limitação seria tratada com soluções mais robustas, como:
+- Databricks Auto Loader (cloudFiles)
+- controle de schema evolution
+- uso de schema registry ou versionamento de schema
+- ingestão incremental com checkpoints
 
 Devido às limitações do ambiente utilizado no case (Databricks Community Edition), essas abordagens não foram aplicadas.
 
-## Padronização de Schema
+### Padronização de Schema
 
 Todas as colunas são explicitamente convertidas para tipos consistentes:
 
 LongType, DoubleType, TimestampType, etc.
 
-Além disso, os nomes das colunas são padronizados para snake_case, garantindo maior consistência e legibilidade.
+Além disso, os nomes das colunas são padronizados para snake_case, garantindo maior legibilidade.
 
 Exemplo:
-
 VendorID → vendor_id
 tpep_pickup_datetime → pickup_datetime
 
-## Tratamento de inconsistências de schema
+### Tratamento de inconsistências de schema
 
 Foi identificado que a coluna airport_fee possui variação de nome entre arquivos:
 
