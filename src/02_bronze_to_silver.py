@@ -1,92 +1,129 @@
-from pyspark.sql.functions import col, year, month
+# Importações de funções e tipos do PySpark
+from pyspark.sql.functions import col, lit, year, month, dayofmonth
 from pyspark.sql.types import LongType, DoubleType, StringType, TimestampType
 from functools import reduce
 
-# Caminho da camada Bronze.
-# Nesta camada estão os arquivos Parquet originais ingeridos da NYC TLC.
-bronze_path = "s3://bronze-case-ifood-geoleal/yellow_taxi"
+# Caminho base da camada Bronze (dados brutos ingeridos do TLC)
+bronze_base_path = "s3://bronze-case-ifood-geoleal"
 
-# Caminho da camada Silver.
-# Nesta camada os dados são padronizados, tipados, limpos e gravados em Delta Lake.
-silver_path = "s3://silver-case-ifood-geoleal/yellow_taxi"
+# Caminho da camada Silver (dados padronizados e prontos para consumo intermediário)
+silver_path = "s3://silver-case-ifood-geoleal/taxi_trips"
 
-# Parâmetros de período para leitura dos dados na camada Bronze
+# Parâmetros de período
 year_id = "2023"
 months = [f"{m:02d}" for m in range(1, 6)]
 
-# Filtro baseado na data real (pickup)
-year_start = 2023
-year_end = 2023
-month_start = 1
-month_end = 5
+# Tipos de datasets disponíveis na NYC TLC
+taxi_types = ["yellow", "green", "fhv", "fhvhv"]
 
+# Lista que armazenará os DataFrames de cada leitura mensal
 dfs = []
 
-for month_id in months:
-    path = f"{bronze_path}/year={year_id}/month={month_id}"
+# Função auxiliar para padronizar colunas entre datasets diferentes
+# Caso a coluna não exista no dataset, retorna NULL com o tipo esperado
+def get_col(df, col_name, data_type, alias_name):
+    if col_name in df.columns:
+        return col(col_name).cast(data_type).alias(alias_name)
+    return lit(None).cast(data_type).alias(alias_name)
 
-    print(f"Lendo dados da Bronze: {path}")
+# Loop principal para leitura dos dados por tipo de taxi e mês
+for taxi_type in taxi_types:
+    for month_id in months:
 
-    # A leitura é feita mês a mês porque os arquivos Parquet originais possuem
-    # diferenças de schema físico entre os meses.
-    df_raw = spark.read.parquet(path)
+        # Caminho da Bronze organizado por tipo, ano e mês
+        path = f"{bronze_base_path}/{taxi_type}/year={year_id}/month={month_id}"
 
-    # Alguns arquivos possuem variação no nome da coluna airport_fee.
-    airport_col = "airport_fee" if "airport_fee" in df_raw.columns else "Airport_fee"
+        print(f"Lendo dados da Bronze: {path}")
 
-    df = (
-        df_raw
-        .select(
-            col("VendorID").cast(LongType()).alias("vendor_id"),
-            col("tpep_pickup_datetime").cast(TimestampType()).alias("pickup_datetime"),
-            col("tpep_dropoff_datetime").cast(TimestampType()).alias("dropoff_datetime"),
-            col("passenger_count").cast(DoubleType()).alias("passenger_count"),
-            col("trip_distance").cast(DoubleType()).alias("trip_distance"),
-            col("RatecodeID").cast(DoubleType()).alias("rate_code_id"),
-            col("store_and_fwd_flag").cast(StringType()).alias("store_and_fwd_flag"),
-            col("PULocationID").cast(LongType()).alias("pu_location_id"),
-            col("DOLocationID").cast(LongType()).alias("do_location_id"),
-            col("payment_type").cast(LongType()).alias("payment_type"),
-            col("fare_amount").cast(DoubleType()).alias("fare_amount"),
-            col("extra").cast(DoubleType()).alias("extra"),
-            col("mta_tax").cast(DoubleType()).alias("mta_tax"),
-            col("tip_amount").cast(DoubleType()).alias("tip_amount"),
-            col("tolls_amount").cast(DoubleType()).alias("tolls_amount"),
-            col("improvement_surcharge").cast(DoubleType()).alias("improvement_surcharge"),
-            col("total_amount").cast(DoubleType()).alias("total_amount"),
-            col("congestion_surcharge").cast(DoubleType()).alias("congestion_surcharge"),
-            col(airport_col).cast(DoubleType()).alias("airport_fee"),
-            col("_metadata.file_path").alias("_source_file")
+        # Leitura do arquivo Parquet bruto
+        df_raw = spark.read.parquet(path)
+
+        # Definição das colunas de data/hora dependendo do tipo de dataset
+        # (cada dataset possui naming diferente)
+        if taxi_type == "yellow":
+            pickup_col = "tpep_pickup_datetime"
+            dropoff_col = "tpep_dropoff_datetime"
+
+        elif taxi_type == "green":
+            pickup_col = "lpep_pickup_datetime"
+            dropoff_col = "lpep_dropoff_datetime"
+
+        elif taxi_type in ["fhv", "fhvhv"]:
+            pickup_col = "pickup_datetime"
+            dropoff_col = "dropOff_datetime" if "dropOff_datetime" in df_raw.columns else "dropoff_datetime"
+
+        # Algumas variações de schema possuem nomes diferentes para airport_fee
+        airport_col = "airport_fee" if "airport_fee" in df_raw.columns else "Airport_fee"
+
+        # Seleção e padronização das colunas
+        df = (
+            df_raw
+            .select(
+                # Identificação do tipo de serviço (importante para análises futuras)
+                lit(taxi_type).alias("taxi_type"),
+
+                # Campos principais
+                get_col(df_raw, "VendorID", LongType(), "vendor_id"),
+
+                # Padronização das colunas de data
+                col(pickup_col).cast(TimestampType()).alias("pickup_datetime"),
+                col(dropoff_col).cast(TimestampType()).alias("dropoff_datetime"),
+
+                # Campos de negócio (quando disponíveis)
+                get_col(df_raw, "passenger_count", DoubleType(), "passenger_count"),
+                get_col(df_raw, "trip_distance", DoubleType(), "trip_distance"),
+                get_col(df_raw, "RatecodeID", DoubleType(), "rate_code_id"),
+                get_col(df_raw, "store_and_fwd_flag", StringType(), "store_and_fwd_flag"),
+                get_col(df_raw, "PULocationID", LongType(), "pu_location_id"),
+                get_col(df_raw, "DOLocationID", LongType(), "do_location_id"),
+                get_col(df_raw, "payment_type", LongType(), "payment_type"),
+
+                # Valores financeiros
+                get_col(df_raw, "fare_amount", DoubleType(), "fare_amount"),
+                get_col(df_raw, "extra", DoubleType(), "extra"),
+                get_col(df_raw, "mta_tax", DoubleType(), "mta_tax"),
+                get_col(df_raw, "tip_amount", DoubleType(), "tip_amount"),
+                get_col(df_raw, "tolls_amount", DoubleType(), "tolls_amount"),
+                get_col(df_raw, "improvement_surcharge", DoubleType(), "improvement_surcharge"),
+                get_col(df_raw, "total_amount", DoubleType(), "total_amount"),
+                get_col(df_raw, "congestion_surcharge", DoubleType(), "congestion_surcharge"),
+
+                # Campo com variação de schema
+                get_col(df_raw, airport_col, DoubleType(), "airport_fee"),
+
+                # Coluna de rastreabilidade (data lineage)
+                col("_metadata.file_path").alias("_source_file")
+            )
+
+            # Criação de colunas auxiliares para particionamento e análises temporais
+            .withColumn("pickup_year", year(col("pickup_datetime")))
+            .withColumn("pickup_month", month(col("pickup_datetime")))
+            .withColumn("pickup_day", dayofmonth(col("pickup_datetime")))
         )
-        # Colunas auxiliares para particionamento e análises temporais.
-        .withColumn("pickup_year", year(col("pickup_datetime")))
-        .withColumn("pickup_month", month(col("pickup_datetime")))
-    )
 
-    dfs.append(df)
+        # Adiciona o DataFrame padronizado à lista
+        dfs.append(df)
 
-# Une os DataFrames mensais em um único DataFrame com schema padronizado.
+# União de todos os DataFrames em um único DataFrame Silver
+# unionByName garante alinhamento correto das colunas
 df_silver = reduce(lambda df1, df2: df1.unionByName(df2), dfs)
 
-# Limpeza mínima para garantir qualidade na camada de consumo.
+# Filtro para garantir qualidade e escopo do case (Jan–May 2023)
 df_silver_clean = (
     df_silver
-    .filter(col("pickup_datetime").isNotNull())
-    .filter(col("dropoff_datetime").isNotNull())
-    .filter(col("total_amount").isNotNull())
-    .filter(col("dropoff_datetime") >= col("pickup_datetime"))
-    .filter(col("pickup_year").between(year_start, year_end))
-    .filter(col("pickup_month").between(month_start, month_end))
+    .filter(col("pickup_year") == 2023)
+    .filter(col("pickup_month").between(1, 5))
 )
 
-# Grava a camada Silver em Delta Lake, particionada por ano e mês.
+# Escrita da camada Silver em formato Delta
+# Particionamento por tipo de taxi, ano e mês para otimizar leitura
 (
     df_silver_clean
     .write
     .format("delta")
     .mode("overwrite")
     .option("overwriteSchema", "true")
-    .partitionBy("pickup_year", "pickup_month")
+    .partitionBy("taxi_type", "pickup_year", "pickup_month")
     .save(silver_path)
 )
 
