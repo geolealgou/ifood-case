@@ -1,21 +1,23 @@
 # Databricks notebook - Bronze ingestion
 # Objetivo:
-# Ingerir os arquivos originais de corridas da NYC TLC (yellow, green, fhv, fhvhv)
+# Ingerir os dados originais de corridas de taxi NYC TLC (yellow, green)
 # para a camada Bronze no Data Lake.
-#
-# A camada Bronze mantém os dados em seu formato original, sem transformações,
-# garantindo rastreabilidade, reprocessamento e auditoria dos dados ingeridos.
+# Parâmetros de período fixo para o case, no ambiente produtivo o ideal é parametrizar , uma tabela ou algo assim
 
-year = "2023"
-months = ["01", "02", "03", "04", "05"]
+# Importações de variaveis
+from variables import BRONZE, MONTH, YEAR, TAXI_TYPE
+
+# Datas de entrada
+year = YEAR
+months = MONTH
 
 base_url = "https://d37ci6vzurychx.cloudfront.net/trip-data"
 
 # Tipos de datasets disponíveis na NYC TLC
-taxi_types = ["yellow", "green", "fhv", "fhvhv"]
+taxi_types = TAXI_TYPE
 
 # Caminho base da camada Bronze no Data Lake (S3)
-bronze_base_path = "s3://bronze-case-ifood-geoleal"
+bronze_base_path = BRONZE
 
 for taxi_type in taxi_types:
     for month in months:

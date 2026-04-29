@@ -1,5 +1,6 @@
 # README — ifood-case
 
+
 ## Visão Geral
 
 Este projeto apresenta uma solução de ingestão, transformação e disponibilização de dados de corridas de táxi de Nova York (NYC TLC), seguindo o modelo de arquitetura **Data Lake em camadas (Bronze, Silver e Gold)**.
@@ -30,7 +31,7 @@ ifood-case/
 
 A solução foi estruturada seguindo o padrão de camadas:
 
-- **Bronze** → dados crus (raw)  
+- **Bronze** → dados bruto  
 - **Silver** → dados tratados e padronizados  
 - **Gold** → dados prontos para consumo analítico  
 
@@ -45,6 +46,16 @@ Ingerir os arquivos originais de corridas de táxi (Yellow Taxi) disponibilizado
 A ingestão foi realizada diretamente a partir da fonte pública:
 
 https://d37ci6vzurychx.cloudfront.net/trip-data
+
+dicionario de dados - https://www.nyc.gov/assets/tlc/downloads/pdf/data_dictionary_trip_records_green.pdf
+https://www.nyc.gov/assets/tlc/downloads/pdf/data_dictionary_trip_records_yellow.pdf
+
+
+no site temos os temos os dados yello , green como no case precisavamos dos dados do taxi,
+ foi baixado apenas os dados de taxi.
+
+ explicar o porque do particionamento ser por ano e mes, o ideal de um particionamente é não ser muito pequeno, mas o suficente para que na consulta leia uma pequena parte .
+
 
 Os dados foram armazenados no S3 onde foi o Data Lake com a seguinte estrutura:
 
@@ -70,9 +81,10 @@ Foi utilizada uma **External Location no Databricks** apontando para um bucket S
 
 Essa abordagem foi escolhida porque, o S3 é um serviço que o databricks consegue gerencia, tem uma integração bem consolidada e é uma pratica de mercado, bem utilizada em ambientes produtivos.
 
-### Armazenamento Raw (sem transformação)
+### Armazenamento dados brutos (sem transformação)
 
 Os dados são armazenados **exatamente como foram recebidos**, sem qualquer modificação.
+É recomendado sempre manter uma camada Bronze com dados os dados brutos, pois isso permite reconstruir pipelines, auditar dados e lidar com mudanças futuras de schema
 
 Isso garante:
 
@@ -80,9 +92,6 @@ Isso garante:
 - possibilidade de reprocessamento;  
 - preservação da fonte original.  
 
-Em um ambiente produtivo:
-
-É recomendado sempre manter uma camada Bronze com dados crus (raw), pois isso permite reconstruir pipelines, auditar dados e lidar com mudanças futuras de schema.
 
 ## ⚪ Camada Silver — Padronização e Qualidade de Dados
 
