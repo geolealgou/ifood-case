@@ -14,7 +14,7 @@ year_id = "2023"
 months = [f"{m:02d}" for m in range(1, 6)]
 
 # Tipos de datasets disponíveis na NYC TLC
-taxi_types = ["yellow", "green", "fhv", "fhvhv"]
+taxi_types = ["yellow", "green"]
 
 # Lista que armazenará os DataFrames de cada leitura mensal
 dfs = []
@@ -46,11 +46,7 @@ for taxi_type in taxi_types:
 
         elif taxi_type == "green":
             pickup_col = "lpep_pickup_datetime"
-            dropoff_col = "lpep_dropoff_datetime"
-
-        elif taxi_type in ["fhv", "fhvhv"]:
-            pickup_col = "pickup_datetime"
-            dropoff_col = "dropOff_datetime" if "dropOff_datetime" in df_raw.columns else "dropoff_datetime"
+            dropoff_col = "lpep_dropoff_datetime"    
 
         # Algumas variações de schema possuem nomes diferentes para airport_fee
         airport_col = "airport_fee" if "airport_fee" in df_raw.columns else "Airport_fee"
