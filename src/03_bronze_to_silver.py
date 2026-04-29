@@ -1,32 +1,41 @@
-# Importações
+# Silver processing
+
+# Objetivo:
+# Ler os dados brutos da camada Bronze, padronizar schemas entre datasets
+# aplicar tipagem, adicionar metadados de linhagem
+# e gravar os dados tratados na camada Silver em Delta Lake.
+
+# Importações Spark e Delta
 from pyspark.sql.functions import col, lit, year, month
 from pyspark.sql.types import LongType, DoubleType, StringType, TimestampType
 from functools import reduce
 from delta.tables import DeltaTable
 
-# Variáveis do projeto
+# Variáveis de configuração do projeto
 from variables import BRONZE, MONTH, YEAR, TAXI_TYPE, TABLE_SILVER
 
 # Caminho base da camada Bronze
 bronze_base_path = BRONZE
 
-# Parâmetros do período
+# Parâmetros de processamento do período
 year_id = YEAR
 months = MONTH
 
-# Tabela destino Silver
+# Tabela destino da camada Silver
 silver_table = TABLE_SILVER
 
-# Tipos de taxi processados
+# Datasets contemplados no processamento
 taxi_types = TAXI_TYPE
 
+# Lista auxiliar para consolidar os DataFrames processados
 dfs = []
 
 
 def get_col(df, col_name, data_type, alias_name):
     """
-    Retorna a coluna convertida para o tipo esperado.
-    Caso a coluna não exista no DataFrame de origem, retorna NULL tipado.
+    Padroniza a leitura de colunas opcionais entre arquivos.
+    Quando a coluna não existe na origem, retorna NULL tipado,
+    mantendo compatibilidade de schema na camada Silver.
     """
     if col_name in df.columns:
         return col(col_name).cast(data_type).alias(alias_name)
@@ -35,18 +44,21 @@ def get_col(df, col_name, data_type, alias_name):
 
 
 # ============================================================
-# Leitura da Bronze + Padronização para o layout da Silver
+# Leitura da Bronze e padronização do layout Silver
 # ============================================================
+
 for taxi_type in taxi_types:
     for month_id in months:
 
+        # Caminho particionado da Bronze por tipo de taxi, ano e mês
         bronze_path = f"{bronze_base_path}/{taxi_type}/year={year_id}/month={month_id}"
 
         print(f"Lendo dados da Bronze: {bronze_path}")
 
+        # Leitura dos arquivos Parquet preservados na camada Bronze
         df_raw = spark.read.parquet(bronze_path)
 
-        # Define as colunas de data conforme o tipo de taxi
+        # Mapeia as colunas de data conforme o padrão de cada dataset
         if taxi_type == "yellow":
             pickup_col = "tpep_pickup_datetime"
             dropoff_col = "tpep_dropoff_datetime"
@@ -55,9 +67,10 @@ for taxi_type in taxi_types:
             pickup_col = "lpep_pickup_datetime"
             dropoff_col = "lpep_dropoff_datetime"
 
-        # Trata variação de nome da coluna airport_fee
+        # Trata variação de nomenclatura observada entre arquivos mensais
         airport_col = "airport_fee" if "airport_fee" in df_raw.columns else "Airport_fee"
 
+        # Seleção, renomeação e tipagem das colunas para o modelo Silver
         df = (
             df_raw
             .select(
@@ -87,9 +100,10 @@ for taxi_type in taxi_types:
 
                 get_col(df_raw, airport_col, DoubleType(), "airport_fee"),
 
-                # Data lineage
+                # Linhagem técnica do dado para auditoria e rastreabilidade
                 col("_metadata.file_path").alias("source_file")
             )
+            # Colunas derivadas para particionamento e consumo analítico
             .withColumn("pickup_year", year(col("pickup_datetime")))
             .withColumn("pickup_month", month(col("pickup_datetime")))
         )
@@ -98,14 +112,18 @@ for taxi_type in taxi_types:
 
 
 # ============================================================
-# União dos DataFrames mensais
+# Consolidação dos lotes mensais
 # ============================================================
+
+# Une todos os DataFrames mantendo alinhamento por nome de coluna
 df_silver_clean = reduce(lambda df1, df2: df1.unionByName(df2), dfs)
 
 
 # ============================================================
-# Deduplicação do lote antes do MERGE
+# Deduplicação do lote
 # ============================================================
+
+# Remove duplicidades antes do MERGE usando chave natural da corrida
 df_silver_clean = df_silver_clean.dropDuplicates([
     "vendor_id",
     "pickup_datetime",
@@ -117,8 +135,10 @@ df_silver_clean = df_silver_clean.dropDuplicates([
 
 
 # ============================================================
-# Condições do MERGE
+# Regras do MERGE
 # ============================================================
+
+# Condição de chave para identificar registros já existentes na Silver
 merge_condition = """
     target.vendor_id = source.vendor_id AND
     target.pickup_datetime = source.pickup_datetime AND
@@ -128,6 +148,7 @@ merge_condition = """
     target.do_location_id = source.do_location_id
 """
 
+# Atualiza apenas registros com alteração real de conteúdo
 update_condition = """
     NOT (
         target.passenger_count <=> source.passenger_count AND
@@ -152,10 +173,12 @@ update_condition = """
 
 
 # ============================================================
-# MERGE na tabela Silver
+# Escrita incremental na camada Silver
 # ============================================================
+
 if spark.catalog.tableExists(silver_table):
 
+    # Carrega a tabela Delta existente para operação incremental
     delta_silver = DeltaTable.forName(spark, silver_table)
 
     (
@@ -164,6 +187,7 @@ if spark.catalog.tableExists(silver_table):
             df_silver_clean.alias("source"),
             merge_condition
         )
+        # Atualiza registros existentes somente quando houver mudança
         .whenMatchedUpdate(
             condition=update_condition,
             set={
@@ -187,8 +211,9 @@ if spark.catalog.tableExists(silver_table):
                 "last_updated": "current_timestamp()"
             }
         )
+        # Insere novos registros ainda não existentes na Silver
         .whenNotMatchedInsert(values={
-           "taxi_type": "source.taxi_type",
+            "taxi_type": "source.taxi_type",
             "vendor_id": "source.vendor_id",
             "pickup_datetime": "source.pickup_datetime",
             "dropoff_datetime": "source.dropoff_datetime",
@@ -219,14 +244,4 @@ if spark.catalog.tableExists(silver_table):
     print(f"MERGE executado com sucesso na tabela {silver_table}.")
 
 else:
-
-    (
-        df_silver_clean
-        .write
-        .format("delta")
-        .mode("overwrite")
-        .partitionBy("taxi_type", "pickup_year", "pickup_month")
-        .saveAsTable(silver_table)
-    )
-
-    print(f"Tabela {silver_table} criada com sucesso.")
+    print(f"Tabela {silver_table} não criada.")
