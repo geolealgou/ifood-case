@@ -366,7 +366,7 @@ A análise indica que, às quintas-feiras, ocorre a maior duração média das c
 
 #### Pré-requisitos
 
-Baixar o repositório, e subir no workspace.
+Copiar a url do repositório para criar na workspace do seu ambiente.
 <p align="center">
   <img src="image/crir_repo.png" width="550">
 </p>

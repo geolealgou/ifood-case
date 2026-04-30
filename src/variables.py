@@ -1,5 +1,5 @@
 # Path S3
-BRONZE = "s3://bronze-case-ifood-geoleal"
+BRONZE = "s3://bronze-taxi"
 
 # Period ingestion
 YEAR = 2023
@@ -13,5 +13,5 @@ TABLE_SILVER = "silver.taxi_silver"
 TABLE_GOLD = "gold.taxi_gold"
 
 # Workspace
-WORKSPACE = "/Workspace/Users/geoleal@gmail.com/ifood-case"
+WORKSPACE = "/Workspace/Users/usuario@gmail.com/ifood-case"
 WAREHOUSE_NAME = 'Serverless Starter Warehouse'
