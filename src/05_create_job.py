@@ -40,7 +40,7 @@ ETL = Job.from_dict(
                 "task_key": "create_table",
                 "sql_task": {
                     "file": {
-                        "path": f"/Workspace/{workspace}/ifood-case/src/00_create_table.sql",
+                        "path": f"{workspace}/src/01_create_table.sql",
                         "source": "WORKSPACE",
                     },
                     "warehouse_id": warehouse_id,
@@ -50,7 +50,7 @@ ETL = Job.from_dict(
                 "task_key": "ingestion",
                 "depends_on": [{"task_key": "create_table"}],
                 "spark_python_task": {
-                    "python_file": f"/Workspace/{workspace}/ifood-case/src/01_ingestion.py",
+                    "python_file": f"{workspace}/src/02_ingestion.py",
                 },
                 "environment_key": "Default",
             },
@@ -58,7 +58,7 @@ ETL = Job.from_dict(
                 "task_key": "bronze_to_silver",
                 "depends_on": [{"task_key": "ingestion"}],
                 "spark_python_task": {
-                    "python_file": f"/Workspace/{workspace}/ifood-case/src/02_bronze_to_silver.py",
+                    "python_file": f"{workspace}/src/03_bronze_to_silver.py",
                 },
                 "environment_key": "Default",
             },
@@ -66,7 +66,7 @@ ETL = Job.from_dict(
                 "task_key": "silver_to_gold",
                 "depends_on": [{"task_key": "bronze_to_silver"}],
                 "spark_python_task": {
-                    "python_file": f"/Workspace/{workspace}/ifood-case/src/04_silver_to_gold.py",
+                    "python_file": f"{workspace}/src/04_silver_to_gold.py",
                 },
                 "environment_key": "Default",
             },

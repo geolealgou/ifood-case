@@ -13,5 +13,5 @@ TABLE_SILVER = "silver.taxi_silver"
 TABLE_GOLD = "gold.taxi_gold"
 
 # Workspace
-WORKSPACE = "Users/geoleal@gmail.com"
+WORKSPACE = "/Workspace/Users/geoleal@gmail.com/ifood-case"
 WAREHOUSE_NAME = 'Serverless Starter Warehouse'

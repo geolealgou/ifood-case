@@ -1,4 +1,4 @@
-# README — ifood-case
+# README — Case iFood (FoodLover)
 
 ## Visão Geral
 
@@ -25,17 +25,17 @@ ifood-case/
 
 A solução foi estruturada seguindo o padrão de camadas:
 
-- **Bronze** → dados brutos  
-- **Silver** → dados tratados e padronizados  
-- **Gold** → dados prontos para consumo analítico  
+- [**Bronze**](#camada-bronze-ingestao) → dados brutos  
+- [**Silver**](#camada-silver-padronizacao-e-qualidade-dados) → dados tratados e padronizados
+- [**Gold**](#gold-layer-data-processing) → dados prontos para consumo analítico  
 
 Desenvolvida no Databricks Community Edition, utilizando Spark e S3.
 
 <p align="center">
-  <img src="../ifood-case/image/arquitetura_solucao.png" width="800">
+  <img src="image/arquitetura_solucao.png" width="800">
 </p>
 
-## 🟤 Camada Bronze — Ingestão
+## Camada Bronze — Ingestão
 
 #### Objetivo
 
@@ -85,7 +85,7 @@ Manter a camada Bronze com dados brutos é uma boa prática, pois permite:
 
 ---
 
-## ⚪ Camada Silver — Padronização e Qualidade de Dados
+## Camada Silver — Padronização e Qualidade de Dados
 
 ### Objetivo
 
@@ -158,8 +158,9 @@ Foi identificado que alguns arquivos apresentam variação de nomenclatura:
 
 Exemplo:
 
+```python
 airport_col = "airport_fee" if "airport_fee" in df_raw.columns else "Airport_fee"
-
+```
 Essa abordagem garante resiliência na leitura e consistência no schema final.
 
 Também foi realizada a padronização das colunas de data:
@@ -201,9 +202,9 @@ Os dados são armazenados em formato Delta, permitindo:
 #### Particionamento
 
 A tabela é particionada por:
-
+```text
 taxi_type, pickup_year, pickup_month
-
+```
 Essa estratégia:
 
 - evita alta cardinalidade;
@@ -213,9 +214,9 @@ Essa estratégia:
 #### Estratégia de carga
 
 A carga é incremental via MERGE, com chave de negócio definida:
-
+```text
 "vendor_id","pickup_datetime","dropoff_datetime","taxi_type","pu_location_id","do_location_id"
-
+```
 - atualização apenas quando há mudança real nos dados;
 - inserção de novos registros.
 
@@ -233,7 +234,7 @@ A camada Silver foi projetada para garantir:
 
 ---
 
-## 🟡 Gold Layer – Data Processing
+## Gold Layer – Data Processing
 
 #### Objetivo
 
@@ -282,9 +283,9 @@ Observação: Existem registros com `passenger_count` nulo. Não foi aplicado tr
 #### 4. Deduplicação
 
 Remoção de registros duplicados com base na chave de negócio:
-
+```text
 vendor_id + pickup_datetime + dropoff_datetime + taxi_type
-
+```
 #### Estratégia de Carga
 
 A carga na Gold é incremental, utilizando MERGE no Delta Lake.
@@ -341,7 +342,7 @@ Qual a média de valor total (total_amount) recebido em um mês considerando tod
 A análise indica que o mês de maio apresentou a maior média de valor recebido quando comparado aos demais meses.
 
 <p align="center">
-  <img src="../ifood-case/image/valor_medio_pago_por_mes.png" width="450">
+  <img src="image/valor_medio_pago_por_mes.png" width="450">
 </p>
 
 Qual a média de passageiros (passenger_count) por cada hora do dia que pegaram táxi no mês de maio considerando todos os táxis da frota?
@@ -349,7 +350,7 @@ Qual a média de passageiros (passenger_count) por cada hora do dia que pegaram 
 Com base no resultado, o horário das duas da manhã apresenta a maior média de passageiros por corrida.
 
 <p align="center">
-  <img src="../ifood-case/image/media_passageiro_por_corrida.png" width="400">
+  <img src="image/media_passageiro_por_corrida.png" width="400">
 </p>
 
 
@@ -358,12 +359,19 @@ Qual o dia da semana em que a duração média das corridas foi maior no mês de
 A análise indica que, às quintas-feiras, ocorre a maior duração média das corridas.
 
 <p align="center">
-  <img src="../ifood-case/image/media_duracao_corrida_dia_semana.png" width="450">
+  <img src="image/media_duracao_corrida_dia_semana.png" width="450">
 </p>
 
 ### Passo a passo para execução
 
 #### Pré-requisitos
+
+Baixar o repositório, e subir no workspace.
+<p align="center">
+  <img src="image/crir_repo.png" width="550">
+</p>
+
+0 - O Cluster precisa ter acesso a internet.
 
 1 - Criar uma External Location no Databricks apontando para um armazenamento ao qual você tenha acesso.  
 Neste case, foi utilizado o AWS S3.
@@ -374,10 +382,8 @@ Neste case, foi utilizado o AWS S3.
 
 #### Opção 1 — Execução via Job (pipeline)
 
-3 - Preencher as variáveis no arquivo `01_variables.py`, incluindo o nome da External Location, WORKSPACE e WAREHOUSE_NAME
+3 - Preencher as variáveis no arquivo `01_variables.py`, incluindo o nome da External Location, **WORKSPACE e WAREHOUSE_NAME**
 Os demais parâmetros já estão definidos conforme as regras do projeto, caso necessario, apenas alterar para os valores correspondete.
-
-4 - Executar o script `src/05_create_job.py` para criação da pipeline no Databricks.
 
 5 - Executar a pipeline através da console **Jobs & Pipelines do Databricks**.  
 Obs: não foi configurado agendamento para este case.
