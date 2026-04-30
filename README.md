@@ -334,6 +334,33 @@ A camada Gold está pronta para:
 
 ---
 
+### Analises e resultados
+
+Qual a média de valor total (total_amount) recebido em um mês considerando todos os yellow táxis da frota? 
+
+A análise indica que o mês de maio apresentou a maior média de valor recebido quando comparado aos demais meses.
+
+<p align="center">
+  <img src="../ifood-case/image/valor_medio_pago_por_mes.png" width="450">
+</p>
+
+Qual a média de passageiros (passenger_count) por cada hora do dia que pegaram táxi no mês de maio considerando todos os táxis da frota?
+
+Com base no resultado, o horário das duas da manhã apresenta a maior média de passageiros por corrida.
+
+<p align="center">
+  <img src="../ifood-case/image/media_passageiro_por_corrida.png" width="400">
+</p>
+
+
+Qual o dia da semana em que a duração média das corridas foi maior no mês de maio, considerando todos os táxis da frota?
+
+A análise indica que, às quintas-feiras, ocorre a maior duração média das corridas.
+
+<p align="center">
+  <img src="../ifood-case/image/media_duracao_corrida_dia_semana.png" width="450">
+</p>
+
 ### Passo a passo para execução
 
 #### Pré-requisitos
@@ -345,7 +372,7 @@ Neste case, foi utilizado o AWS S3.
 
 ---
 
-### Opção 1 — Execução via Job (pipeline)
+#### Opção 1 — Execução via Job (pipeline)
 
 3 - Preencher as variáveis no arquivo `01_variables.py`, incluindo o nome da External Location, WORKSPACE e WAREHOUSE_NAME
 Os demais parâmetros já estão definidos conforme as regras do projeto, caso necessario, apenas alterar para os valores correspondete.
@@ -359,7 +386,7 @@ Obs: não foi configurado agendamento para este case.
 
 ---
 
-### Opção 2 — Execução manual (step-by-step)
+#### Opção 2 — Execução manual (step-by-step)
 
 3 - Preencher as variáveis no arquivo `01_variables.py`, incluindo o nome da External Location.  
 Os demais parâmetros já estão definidos conforme as regras do projeto,caso necessario, apenas alterar para os valores correspondete.
