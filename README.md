@@ -328,38 +328,40 @@ A camada Gold está pronta para:
 
 ---
 
-### Passo a passo para executar o código
+### Passo a passo para execução
 
-## Passo a passo para executar o código
+#### Pré-requisitos
 
-1 - Criar uma External Location apontando para o armazenamento disponível no Databricks ao qual você tenha acesso.  
-No caso deste case, foi utilizado o AWS S3.
+1 - Criar uma External Location no Databricks apontando para um armazenamento ao qual você tenha acesso.  
+Neste case, foi utilizado o AWS S3.
 
-2 - Executar o script `src/00_create_table.py`, que cria as tabelas necessárias para o pipeline.
-
-### Opção 1 - Rodar o JOB para executar a pipeline
-
-3 - Preencher as variáveis no arquivo `01_variables.py`, como o nome da External Location.  
-Os demais parâmetros já estão definidos conforme a regra do projeto.
-
-4 - Executar o código `src/05_create_job.py` para criar a pipeline.
-
-5 - Executar a pipeline através da console **Jobs & Pipelines do Databricks**.  
-Não foi configurado agendamento.
-
-6 - Executar o notebook de análises dos dados, contendo as queries e comentários explicativos de cada análise.
+2 - Executar o script `src/00_create_table.py`, responsável pela criação das tabelas do pipeline.
 
 ---
 
-### Opção 2 - Executar um script por vez.
+### Opção 1 — Execução via Job (pipeline)
 
-3 - Preencher as variáveis no arquivo `01_variables.py`, como o nome da External Location.  
-Os demais parâmetros já estão definidos conforme a regra do projeto.
+3 - Preencher as variáveis no arquivo `01_variables.py`, incluindo o nome da External Location, WORKSPACE e WAREHOUSE_NAME
+Os demais parâmetros já estão definidos conforme as regras do projeto, caso necessario, apenas alterar para os valores correspondete.
 
-4 - Executar o código `src/02_ingestion.py`, que extrai os dados do site e realiza a ingestão na camada Bronze no S3.
+4 - Executar o script `src/05_create_job.py` para criação da pipeline no Databricks.
 
-5 - Executar o código `src/03_bronze_to_silver.py`, que realiza a transformação e carga dos dados na tabela `taxi_silver`.
+5 - Executar a pipeline através da console **Jobs & Pipelines do Databricks**.  
+Obs: não foi configurado agendamento para este case.
 
-6 - Executar o código `src/04_silver_to_gold.py`, que realiza a carga dos dados na tabela `taxi_gold`.
+6 - Executar o notebook de análises, que contém as queries e comentários explicativos.
 
-7 - Executar o notebook de análises dos dados, contendo as queries e comentários explicativos de cada análise.
+---
+
+### Opção 2 — Execução manual (step-by-step)
+
+3 - Preencher as variáveis no arquivo `01_variables.py`, incluindo o nome da External Location.  
+Os demais parâmetros já estão definidos conforme as regras do projeto,caso necessario, apenas alterar para os valores correspondete.
+
+4 - Executar o script `src/02_ingestion.py`, responsável pela ingestão dos dados na camada Bronze no S3.
+
+5 - Executar o script `src/03_bronze_to_silver.py`, responsável pela transformação e carga na tabela `taxi_silver`.
+
+6 - Executar o script `src/04_silver_to_gold.py`, responsável pela carga dos dados na tabela `taxi_gold`.
+
+7 - Executar o notebook de análises para validação e exploração dos dados.
