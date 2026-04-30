@@ -8,71 +8,76 @@ Este projeto apresenta uma solução de ingestão, transformação e disponibili
 
 ifood-case/
 
-├─ src/ #contém toda a pipeline de dados
+├─ src/ # Contém toda a pipeline de dados  
+│ ├─ 00_create_table.py # Criação da tabela  
+│ ├─ 01_variables.py # Variáveis globais  
+│ ├─ 02_ingestion.py # Ingestão camada Bronze  
+│ ├─ 03_bronze_to_silver.py # Transformação Bronze → Silver  
+│ ├─ 04_silver_to_gold.py # Transformação Silver → Gold  
+│ └─ 05_create_job.py # Criação da pipeline  
 
-│ ├─ 00_create_table.py # Criacao da tabela
+├─ analysis/ # Queries e análises  
+│ ├─ analisys.ipynb  
 
-│ ├─ 01_ingestion.py # Ingestão camada Bronze
-
-│ ├─ 02_bronze_to_silver.py # Transformação Bronze → Silver
-
-│ ├─ 03_silver_to_gold.py # Transformação Silver → Gold
-
-│ └─ variables.py 
-
-├─ analysis/ # Queries e análises
-
-│ ├─ analisys.ipynb
-
-├─ README.md #documentação da solução
+├─ README.md # Documentação da solução  
 
 ### Arquitetura da Solução
 
 A solução foi estruturada seguindo o padrão de camadas:
 
-- **Bronze** → dados bruto  
+- **Bronze** → dados brutos  
 - **Silver** → dados tratados e padronizados  
 - **Gold** → dados prontos para consumo analítico  
+
+Desenvolvida no Databricks Community Edition, utilizando Spark e S3.
+
+<!-- Inserir desenho da arquitetura -->
 
 ## 🟤 Camada Bronze — Ingestão
 
 #### Objetivo
 
-Ingerir os arquivos do ano de 2023 e meses de janeiro a maio de corridas de táxi, disponibilizados pela NYC TLC, mantendo os dados em seu formato original e garantindo rastreabilidade.
+Ingerir os arquivos do ano de 2023, dos meses de janeiro a maio, referentes às corridas de táxi disponibilizadas pela NYC TLC, mantendo os dados em seu formato original e garantindo rastreabilidade.
 
 #### Implementação
 
-A ingestão foi realizada diretamente a partir da fonte pública:
+A ingestão foi realizada diretamente a partir da fonte pública:  
 https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page
 
-Dicionario de dados utilizado para entendimento dos dados da frota de taxi:
-Green: https://www.nyc.gov/assets/tlc/downloads/pdf/data_dictionary_trip_records_green.pdf
-Yellow: https://www.nyc.gov/assets/tlc/downloads/pdf/data_dictionary_trip_records_yellow.pdf
+Dicionário de dados utilizado para entendimento dos dados das frotas de táxi:
 
-Na camada bronze os dados estao na estrutura de particionamento hive por ano e mes, baseado na data de referencia da base de dados disponibilizadas no site, cuja  atualizacoa incremental é mensal.
- A regra do particionamento segue a forma em que os dados serão consultados nas proximas camadas, como a etapa de processamento será realizada mensalmente, foi definido por ano e mes, o que evita que seja rastreados todos os dados para que seja escaneado os dados mensal.
+Green: https://www.nyc.gov/assets/tlc/downloads/pdf/data_dictionary_trip_records_green.pdf  
+Yellow: https://www.nyc.gov/assets/tlc/downloads/pdf/data_dictionary_trip_records_yellow.pdf  
 
-Os dados da camada bronze foram armazenados no S3 com a seguinte estrutura:
+Na camada Bronze, os dados estão organizados com particionamento Hive por ano e mês, baseado na data de referência dos dados disponibilizados no site, cuja atualização incremental é mensal.
+
+A estratégia de particionamento segue o padrão de consumo das próximas camadas. Como o processamento é mensal, foi definido particionamento por ano e mês, evitando a leitura desnecessária de grandes volumes de dados.
+
+Os dados da camada Bronze foram armazenados no S3 com a seguinte estrutura:
 
 s3://bronze-case-ifood-geoleal/nome_da_frota/
 
-└── year=YYYY/
-
-└── month=MM/
-
+└── year=YYYY/  
+  └── month=MM/
 
 #### Decisões Técnicas
 
 ##### Uso de External Location (Databricks)
 
-Foi utilizada uma **External Location no Databricks** apontando para um bucket S3 para armazenar os dados da camada Bronze,
- que uma funcionalidade disponibilizada pelo databricks e o S3.
+Foi utilizada uma **External Location no Databricks** apontando para um bucket S3 para armazenar os dados da camada Bronze, utilizando integração nativa entre Databricks e S3.
 
-#### Armazenamento dados brutos (sem transformação)
+#### Armazenamento de dados brutos (sem transformação)
 
 Os dados são armazenados exatamente como foram recebidos, sem qualquer modificação.
-É recomendado sempre manter uma camada Bronze com  os dados brutos, pois isso permite reconstruir pipelines, auditar dados, reprocessamento e lidar com mudanças futuras de schema
 
+Manter a camada Bronze com dados brutos é uma boa prática, pois permite:
+
+- reconstrução de pipelines;
+- auditoria de dados;
+- reprocessamento;
+- adaptação a mudanças futuras de schema.
+
+---
 
 ## ⚪ Camada Silver — Padronização e Qualidade de Dados
 
@@ -88,7 +93,7 @@ Nesta etapa são aplicados:
 - adição de metadados de linhagem;
 - organização otimizada para leitura.
 
-###  Implementação
+### Implementação
 
 Os dados são lidos a partir da camada Bronze, transformados utilizando PySpark e armazenados em formato **Delta Lake** em uma tabela no database `silver`.
 
@@ -97,8 +102,6 @@ A carga é realizada de forma **incremental**, utilizando `MERGE`, garantindo:
 - atualização apenas quando necessário;
 - inserção de novos registros;
 - consistência transacional (ACID).
-
----
 
 ### Decisões Técnicas
 
@@ -118,10 +121,10 @@ Em um ambiente produtivo com grande volume de dados, essa abordagem não escala.
 
 Nesse cenário, seriam adotadas soluções mais robustas, como:
 
-- Databricks Auto Loader (`cloudFiles`)
-- controle de schema evolution
-- versionamento de schema
-- ingestão incremental com checkpoint
+- Databricks Auto Loader (`cloudFiles`);
+- controle de schema evolution;
+- versionamento de schema;
+- ingestão incremental com checkpoint.
 
 #### Padronização de Schema
 
@@ -136,10 +139,10 @@ Além disso, os nomes das colunas são padronizados para **snake_case**, garanti
 
 **Exemplo:**
 
-| Origem                  | Silver            |
-|------------------------|------------------|
-| VendorID               | vendor_id        |
-| tpep_pickup_datetime   | pickup_datetime  |
+| Origem                | Silver           |
+|----------------------|------------------|
+| VendorID             | vendor_id        |
+| tpep_pickup_datetime | pickup_datetime  |
 
 ---
 
@@ -149,27 +152,23 @@ Foi identificado que alguns arquivos apresentam variação de nomenclatura:
 
 Exemplo:
 
-```python
 airport_col = "airport_fee" if "airport_fee" in df_raw.columns else "Airport_fee"
-```
 
 Essa abordagem garante resiliência na leitura e consistência no schema final.
 
 Também foi realizada a padronização das colunas de data:
 
-tpep_* (yellow taxi)
-lpep_* (green taxi)
+- `tpep_*` (yellow taxi)  
+- `lpep_*` (green taxi)
 
 #### Análise dos dados
 
 Os dados foram ingeridos conforme o escopo do case:
 
-Ano: 2023
-Período: Janeiro a Maio
+- Ano: 2023  
+- Período: Janeiro a Maio  
 
-Durante a análise na camada Silver, foi observado que:
-
-existem registros com datas no período de (ex: 2021 até novembro de 2023)
+Durante a análise na camada Silver, foi observado que existem registros fora desse período (ex: de 2021 até novembro de 2023).
 
 Esses dados foram mantidos na Silver, pois essa camada preserva maior fidelidade à origem.
 
@@ -177,15 +176,16 @@ Esses dados foram mantidos na Silver, pois essa camada preserva maior fidelidade
 
 Foram adicionadas colunas derivadas para otimização e governança:
 
-pickup_year → utilizada no particionamento
-pickup_month → utilizada no particionamento
-source_file → rastreabilidade (linhagem do dado)
-last_ingestion → auditoria de carga
-last_updated → auditoria de atualização
+- pickup_year → particionamento  
+- pickup_month → particionamento  
+- source_file → rastreabilidade  
+- last_ingestion → auditoria de carga  
+- last_updated → auditoria de atualização  
 
 #### Uso de Delta Lake
 
 Os dados são armazenados em formato Delta, permitindo:
+
 - melhor performance em leitura;
 - suporte a transações ACID;
 - controle de atualizações via MERGE;
@@ -195,24 +195,23 @@ Os dados são armazenados em formato Delta, permitindo:
 #### Particionamento
 
 A tabela é particionada por:
-```text
+
 taxi_type, pickup_year, pickup_month
-```
+
 Essa estratégia:
+
 - evita alta cardinalidade;
 - melhora a performance de consultas filtradas por período e tipo;
 - está alinhada com o padrão de acesso esperado.
 
 #### Estratégia de carga
 
-A carga é incremental via MERGE, com:
+A carga é incremental via MERGE, com chave de negócio definida:
 
-chave negócio definida:
-```text
-"vendor_id","pickup_datetime", "dropoff_datetime", "taxi_type", "pu_location_id", "do_location_id"
-```
-atualização apenas quando há mudança real nos dados;
-inserção de novos registros.
+"vendor_id","pickup_datetime","dropoff_datetime","taxi_type","pu_location_id","do_location_id"
+
+- atualização apenas quando há mudança real nos dados;
+- inserção de novos registros.
 
 Isso reduz custo de processamento e evita reescritas desnecessárias.
 
@@ -220,20 +219,19 @@ Isso reduz custo de processamento e evita reescritas desnecessárias.
 
 A camada Silver foi projetada para garantir:
 
-consistência de schema entre arquivos;
-padronização dos dados;
-rastreabilidade (data lineage);
-base confiável para consumo analítico;
-otimização de leitura via Delta e particionamento.
+- consistência de schema entre arquivos;
+- padronização dos dados;
+- rastreabilidade (data lineage);
+- base confiável para consumo analítico;
+- otimização de leitura via Delta e particionamento.
+
+---
 
 ## 🟡 Gold Layer – Data Processing
 
 #### Objetivo
 
-A camada **Gold** tem como objetivo disponibilizar dados prontos para consumo analítico, com um modelo simplificado, consistente e otimizado para consultas de negócio.
-
-Nesta etapa, os dados da camada Silver são filtrados, refinados e enriquecidos com regras de qualidade, garantindo confiabilidade para dashboards, análises e exploração de dados.
-
+A camada Gold tem como objetivo disponibilizar dados prontos para consumo analítico, com um modelo simplificado, consistente e otimizado para consultas de negócio.
 
 #### Fonte de Dados
 
@@ -244,14 +242,13 @@ Nesta etapa, os dados da camada Silver são filtrados, refinados e enriquecidos 
 #### Transformações Aplicadas
 
 ##### 1. Filtro de Período
-Seleciona apenas os dados do ano e meses definidos, conforme solicitação:
+
+Seleciona apenas os dados do ano e meses definidos:
 
 - `pickup_year = YEAR`
 - `pickup_month IN (MONTH)`
 
 ##### 2. Seleção de Colunas
-
-A camada Gold mantém apenas os campos necessários para consumo analítico:
 
 | Coluna            | Descrição |
 |------------------|----------|
@@ -262,12 +259,11 @@ A camada Gold mantém apenas os campos necessários para consumo analítico:
 | dropoff_datetime | Data/hora de término |
 | pickup_year      | Ano da corrida |
 | pickup_month     | Mês da corrida |
-| taxi_type        | Tipo de taxi |
-
+| taxi_type        | Tipo de táxi |
 
 ##### 3. Regras de Qualidade de Dados
 
-Antes da carga na Gold, são aplicadas validações para garantir consistência, essas regras são definidas com a area de negócio, fazendo sentido para a analise:
+Antes da carga na Gold, são aplicadas validações para garantir consistência:
 
 - Remoção de registros com `pickup_datetime` nulo  
 - Remoção de registros com `dropoff_datetime` nulo  
@@ -275,15 +271,13 @@ Antes da carga na Gold, são aplicadas validações para garantir consistência,
 - Validação temporal:
   - `dropoff_datetime >= pickup_datetime`
 
-Existe registros com a coluna passenger_count nula, esse tratamento não foi feito, poderia ter criado uma regra que se existe corrida com data e hora e valor pago considerasse no minimo uma pessoa.
+Observação: Existem registros com `passenger_count` nulo. Não foi aplicado tratamento, mas poderia ser considerada uma regra assumindo no mínimo 1 passageiro.
 
 #### 4. Deduplicação
 
-Remoção de registros duplicados com base na granularidade da corrida, usada a chave de negocio:
+Remoção de registros duplicados com base na chave de negócio:
 
-```text
 vendor_id + pickup_datetime + dropoff_datetime + taxi_type
-```
 
 #### Estratégia de Carga
 
@@ -291,66 +285,81 @@ A carga na Gold é incremental, utilizando MERGE no Delta Lake.
 
 ##### Chave de negócio
 
-- vendor_id
-- pickup_datetime
-- dropoff_datetime
-- taxi_type
+- vendor_id  
+- pickup_datetime  
+- dropoff_datetime  
+- taxi_type  
 
 #### Atualização de dados
 
-Registros existentes são atualizados somente quando há alteração real nos dados, evitando reprocessamento desnecessário.
+Registros existentes são atualizados apenas quando há alteração nos campos:
 
-Campos monitorados:
-passenger_count
-total_amount
+- passenger_count  
+- total_amount  
 
-Inserção de novos registros: 
-Registros inexistentes na Gold são inseridos normalmente.
+Inserção de novos registros ocorre normalmente.
 
 ##### Estrutura da Tabela
-  Formato: Delta Lake
-  Particionamento:
-  pickup_year, pickup_month
 
-Esse particionamento melhora a performance de consultas filtradas por período.
+- Formato: Delta Lake  
+- Particionamento:
+  - pickup_year
+  - pickup_month  
 
+Esse particionamento melhora a performance de consultas.
 
 #### Boas Práticas Aplicadas
 
-- Separação por camadas, ideal para governança, regras de quem pode acessar cada camada
-- Redução de colunas, apenas colunas necessarias para o negocio, otimizando a leitura
-- Deduplicação antes da persistência
-- Carga incremental com MERGE
-- Evita updates desnecessários (performance + custo)
-- Aplicação de regras de qualidade na camada de consumo
-- Particionamento orientado a uso analítico
+- Separação por camadas  
+- Redução de colunas  
+- Deduplicação  
+- Carga incremental com MERGE  
+- Otimização de performance e custo  
+- Aplicação de regras de qualidade  
+- Particionamento orientado ao consumo  
 
 #### Consumo
 
 A camada Gold está pronta para:
-- Dashboards 
-- Queries analíticas (Spark SQL / Databricks SQL)
-- Exploração de dados por analistas
 
+- Dashboards  
+- Queries analíticas (Spark SQL / Databricks SQL)  
+- Exploração de dados  
 
-## Passo a passo para executar o codigo
+---
 
-1 - Criar uma extarnal location apontando para o armazento que tiver disponivel na location databricks e tiver acesso, no caso do case foi utilizado o AWS S3, que tenho disponivel
+### Passo a passo para executar o código
 
-2 - Rodar o script src/00_create_table, que cria as tabelas necessarias para o pipeline
+## Passo a passo para executar o código
 
-3 - preencher as variaveis no arquivo 01_variables.py, como o nome do external location, os demais já estão preenchidos conforme a regra definida.
+1 - Criar uma External Location apontando para o armazenamento disponível no Databricks ao qual você tenha acesso.  
+No caso deste case, foi utilizado o AWS S3.
 
-4-  executar o codigo src/02_ingestion.py, script extrai os dados do site e faz a ingestão na camada bronze no S3
+2 - Executar o script `src/00_create_table.py`, que cria as tabelas necessárias para o pipeline.
 
-5 - executar o codigo src/03_bronze_to_silver.py,  faz a ingestão dos dados a tabela taxi_silver
+### Opção 1 - Rodar o JOB para executar a pipeline
 
-6- executar o codigo src/04_silver_to_gold.py,  faz  a ingestão dos dados na tabela taxi_gold
+3 - Preencher as variáveis no arquivo `01_variables.py`, como o nome da External Location.  
+Os demais parâmetros já estão definidos conforme a regra do projeto.
 
-7- Notebook de analises dos dados, executar as consultas para analises dos dados, adicionado os comentarios em cada analise. 
+4 - Executar o código `src/05_create_job.py` para criar a pipeline.
 
+5 - Executar a pipeline através da console **Jobs & Pipelines do Databricks**.  
+Não foi configurado agendamento.
 
+6 - Executar o notebook de análises dos dados, contendo as queries e comentários explicativos de cada análise.
 
+---
 
+### Opção 2 - Executar um script por vez.
 
+3 - Preencher as variáveis no arquivo `01_variables.py`, como o nome da External Location.  
+Os demais parâmetros já estão definidos conforme a regra do projeto.
 
+4 - Executar o código `src/02_ingestion.py`, que extrai os dados do site e realiza a ingestão na camada Bronze no S3.
+
+5 - Executar o código `src/03_bronze_to_silver.py`, que realiza a transformação e carga dos dados na tabela `taxi_silver`.
+
+6 - Executar o código `src/04_silver_to_gold.py`, que realiza a carga dos dados na tabela `taxi_gold`.
+
+7 - Executar o notebook de análises dos dados, contendo as queries e comentários explicativos de cada análise.

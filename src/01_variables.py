@@ -11,3 +11,7 @@ TAXI_TYPE = ["yellow", "green"]
 # Tabelas
 TABLE_SILVER = "silver.taxi_silver"
 TABLE_GOLD = "gold.taxi_gold"
+
+# Workspace
+WORKSPACE = "Users/geoleal@gmail.com"
+WAREHOUSE_NAME = 'Serverless Starter Warehouse'
