@@ -130,7 +130,8 @@ df_silver_clean = df_silver_clean.dropDuplicates([
     "dropoff_datetime",
     "taxi_type",
     "pu_location_id",
-    "do_location_id"
+    "do_location_id",
+    "total_amount"
 ])
 
 
@@ -145,7 +146,9 @@ merge_condition = """
     target.dropoff_datetime = source.dropoff_datetime AND
     target.taxi_type = source.taxi_type AND
     target.pu_location_id = source.pu_location_id AND
-    target.do_location_id = source.do_location_id
+    target.do_location_id = source.do_location_id AND
+    target.total_amount = source.total_amount 
+
 """
 
 # Atualiza apenas registros com alteração real de conteúdo
@@ -162,7 +165,6 @@ update_condition = """
         target.tip_amount <=> source.tip_amount AND
         target.tolls_amount <=> source.tolls_amount AND
         target.improvement_surcharge <=> source.improvement_surcharge AND
-        target.total_amount <=> source.total_amount AND
         target.congestion_surcharge <=> source.congestion_surcharge AND
         target.airport_fee <=> source.airport_fee AND
         target.source_file <=> source.source_file AND

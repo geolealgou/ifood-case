@@ -31,20 +31,26 @@ A solução foi estruturada seguindo o padrão de camadas:
 
 Desenvolvida no Databricks Community Edition, utilizando Spark e S3.
 
-<!-- Inserir desenho da arquitetura -->
+<p align="center">
+  <img src="../ifood-case/image/arquitetura_solucao.png" width="800">
+</p>
 
 ## 🟤 Camada Bronze — Ingestão
 
 #### Objetivo
 
-Ingerir os arquivos do ano de 2023, dos meses de janeiro a maio, referentes às corridas de táxi disponibilizadas pela NYC TLC, mantendo os dados em seu formato original e garantindo rastreabilidade.
+Ingerir os arquivos do ano de 2023, dos meses de janeiro a maio, referentes às corridas de táxi disponibilizadas pela NYC TLC, mantendo os dados em seu formato original e garantindo rastreabilidade. 
 
 #### Implementação
 
-A ingestão foi realizada diretamente a partir da fonte pública:  
+A ingestão da camada Bronze é realizada pelo script:
+
+`src/02_ingestion.py`
+
+Os dados são extraídos a partir da fonte pública:  
 https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page
 
-Dicionário de dados utilizado para entendimento dos dados das frotas de táxi:
+O dicionário de dados utilizado para entendimento do dadaset das frotas de táxi:
 
 Green: https://www.nyc.gov/assets/tlc/downloads/pdf/data_dictionary_trip_records_green.pdf  
 Yellow: https://www.nyc.gov/assets/tlc/downloads/pdf/data_dictionary_trip_records_yellow.pdf  
